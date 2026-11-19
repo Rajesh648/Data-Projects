@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>person Recognition System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="container">
+    <div class="camera-section">
+        <img id="video-feed" src="{{ url_for('video_feed') }}">
+        <div class="camera-info">
+            <h2 id="status">SCANNING...</h2>
+            <p>Similarity: <span id="similarity">0%</span></p>
+            <p>Name: <span id="camera-name">Unknown</span></p>
+        </div>
+    </div>
+
+    <div class="info-panel">
+        <h1>PERSON INFORMATION</h1>
+        <img id="person-image" class="person-image" src="/static/images/unknown.png">
+
+        <div class="button-group">
+            <input type="file" id="upload-input" hidden>
+            <button onclick="uploadImage()">Upload Image</button>
+            <button id="get-info-btn" onclick="getInfo()" disabled>Get Info</button>
+            <button onclick="resetPanel()" class="reset-btn">Reset</button>
+        </div>
+
+        <div class="info-box">
+            <p><span class="label">Status:</span> <span id="panel-status">Scanning...</span></p>
+            <p><span class="label">Name:</span> <span id="name">Unknown</span></p>
+            <p><span class="label">Similarity:</span> <span id="panel-similarity">0%</span></p>
+            <p><span class="label">Age:</span> <span id="age">-</span></p>
+            <p><span class="label">Gender:</span> <span id="gender">-</span></p>
+            <p><span class="label">Phone:</span> <span id="phone">-</span></p>
+            <p><span class="label">Address:</span> <span id="address">-</span></p>
+            <p><span class="label">Email:</span> <span id="email">-</span></p>
+            <p><span class="label">Occupation:</span> <span id="occupation">-</span></p>
+            <p><span class="label">Message:</span> <span id="message">Waiting for detection...</span></p>
+        </div>
+    </div>
+</div>
+
+<script>
+let isPaused = false;
+
+async function loadPersonData(){
+    if (isPaused) return; // Fix 1: Stop live function during upload
+
+    try{
+        let response = await fetch("/person_data");
+        let data = await response.json();
+        updateUI(data);
+    } catch(error){ console.log(error); }
+}
+
+function updateUI(data) {
+    // Text updates
+    document.getElementById("status").innerText = data.status;
+    document.getElementById("similarity").innerText = data.similarity;
+    document.getElementById("camera-name").innerText = data.name;
+    document.getElementById("panel-status").innerText = data.status;
+    document.getElementById("name").innerText = data.name;
+    document.getElementById("panel-similarity").innerText = data.similarity;
+    document.getElementById("age").innerText = data.age;
+    document.getElementById("gender").innerText = data.gender;
+    document.getElementById("phone").innerText = data.phone;
+    document.getElementById("address").innerText = data.address;
+    document.getElementById("email").innerText = data.email;
+    document.getElementById("occupation").innerText = data.occupation;
+    document.getElementById("message").innerText = data.message;
+
+    // Image logic: Load from data.image which is now a valid web path
+    if(data.status === "PERSON VERIFIED" || data.status === "SIMILAR PERSON"){
+        document.getElementById("person-image").src = data.image;
+    } else {
+        document.getElementById("person-image").src = "/static/images/unknown.png";
+    }
+
+    // Status Colors
+    let statusElement = document.getElementById("status");
+    if(data.status === "PERSON VERIFIED") statusElement.className = "verified";
+    else if(data.status === "SIMILAR PERSON") statusElement.className = "similar";
+    else statusElement.className = "unknown";
+}
+
+setInterval(loadPersonData, 2000);
+
+function getInfo(){
+    isPaused = false; // Temporarily unpause to refresh
+    loadPersonData();
+    isPaused = true;
+}
+
+function resetPanel(){
+    isPaused = false;
+    document.getElementById("get-info-btn").disabled = true; // Fix 1.1: Disable on reset
+    document.getElementById("message").innerText = "Live scanning resumed.";
+    // Reset image to default
+    document.getElementById("person-image").src = "/static/images/unknown.png";
+}
+
+function uploadImage(){
+    document.getElementById("upload-input").click();
+}
+
+document.getElementById("upload-input").addEventListener("change", async function(){
+    let file = this.files[0];
+    if(!file) return;
+
+    isPaused = true; // Pause live detection
+    let formData = new FormData();
+    formData.append("image", file);
+
+    try{
+        let response = await fetch("/upload_image", { method:"POST", body:formData });
+        let data = await response.json();
+        
+        updateUI(data);
+        document.getElementById("get-info-btn").disabled = false; // Fix 1.2: Enable after upload
+    } catch(error){
+        console.log(error);
+        isPaused = false;
+    }
+});
+</script>
+</body>
+</html>

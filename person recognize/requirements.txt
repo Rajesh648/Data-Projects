@@ -1,0 +1,3 @@
+
+Python.3.10
+flask opencv-python deepface psycopg2 numpy tf-keras face_recognition
